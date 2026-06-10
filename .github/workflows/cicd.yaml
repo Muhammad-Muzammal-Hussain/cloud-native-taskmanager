@@ -1,58 +1,44 @@
-name: CI/CD - build & deploy to AKS
+name: CI/CD - Build and Push Images
 
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
 
-# Set these in GitHub:
-#   Settings > Secrets and variables > Actions
-#   Secret  : AZURE_CREDENTIALS   (output of: az ad sp create-for-rbac ... --sdk-auth)
-#   Variables: ACR_NAME, ACR_LOGIN_SERVER, RESOURCE_GROUP, AKS_CLUSTER
-env:
-  IMAGE_TAG: ${{ github.sha }}
-  ACR_LOGIN_SERVER: ${{ vars.ACR_LOGIN_SERVER }}
-
 jobs:
-  build-and-deploy:
+  build-and-push:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Azure login
-        uses: azure/login@v2
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # Build images server-side in ACR (no Docker needed on the runner)
-      - name: Build & push API image
-        run: az acr build --registry ${{ vars.ACR_NAME }} --image taskapi:${{ env.IMAGE_TAG }} --image taskapi:latest ./app/api
-
-      - name: Build & push Web image
-        run: az acr build --registry ${{ vars.ACR_NAME }} --image taskweb:${{ env.IMAGE_TAG }} --image taskweb:latest ./app/web
-
-      - name: Set AKS context
-        uses: azure/aks-set-context@v4
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
         with:
-          resource-group: ${{ vars.RESOURCE_GROUP }}
-          cluster-name: ${{ vars.AKS_CLUSTER }}
+          context: ./app/api
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/taskapi:latest
+            ${{ secrets.DOCKER_USERNAME }}/taskapi:${{ github.sha }}
 
-      - name: Deploy manifests
-        run: |
-          # Apply the static manifests (namespace, secret, config, db, services, ingress)
-          kubectl apply -f k8s/00-namespace.yaml
-          kubectl apply -f k8s/01-postgres-secret.yaml
-          kubectl apply -f k8s/02-app-config.yaml
-          kubectl apply -f k8s/03-postgres-statefulset.yaml
-          kubectl apply -f k8s/06-ingress.yaml
-          # Substitute image vars into the api/web deployments, then apply
-          export ACR_LOGIN_SERVER IMAGE_TAG
-          envsubst < k8s/04-api.yaml | kubectl apply -f -
-          envsubst < k8s/05-web.yaml | kubectl apply -f -
+      - name: Build and push Web image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app/web
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/taskweb:latest
+            ${{ secrets.DOCKER_USERNAME }}/taskweb:${{ github.sha }}
 
-      - name: Wait for rollout
+      - name: Summary
         run: |
-          kubectl -n taskapp rollout status statefulset/postgres --timeout=180s
-          kubectl -n taskapp rollout status deployment/api --timeout=180s
-          kubectl -n taskapp rollout status deployment/web --timeout=180s
+          echo "✅ Images pushed successfully!"
+          echo "API:  ${{ secrets.DOCKER_USERNAME }}/taskapi:${{ github.sha }}"
+          echo "Web:  ${{ secrets.DOCKER_USERNAME }}/taskweb:${{ github.sha }}"
