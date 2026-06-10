@@ -1,0 +1,58 @@
+<!DOCTYPE html><html><head><title>Task Manager</title>
+<style>
+body{margin:0;font-family:system-ui;background:#0f172a;color:#e2e8f0;padding:2rem}
+.wrap{max-width:640px;margin:0 auto}
+h1{font-size:1.6rem}
+p{color:#94a3b8;font-size:.9rem}
+.add{display:flex;gap:.5rem;margin-bottom:1.5rem}
+input{flex:1;padding:.75rem;border-radius:.6rem;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:1rem}
+button{cursor:pointer;border:none;border-radius:.6rem;padding:.75rem 1rem;background:#38bdf8;color:#0b1220;font-weight:600}
+button.ghost{background:transparent;color:#94a3b8;font-size:1.2rem;padding:.4rem .6rem}
+ul{list-style:none;padding:0}
+li{display:flex;align-items:center;gap:.75rem;background:#1e293b;padding:.85rem 1rem;border-radius:.6rem;margin-bottom:.6rem}
+li.done span{text-decoration:line-through;color:#475569}
+span{flex:1}
+input[type=checkbox]{width:1.2rem;height:1.2rem;accent-color:#38bdf8}
+footer{color:#475569;font-size:.75rem;text-align:center;margin-top:2rem}
+</style></head>
+<body><div class="wrap">
+<h1>📋 Task Manager</h1>
+<p>Cloud-native demo · Express API + PostgreSQL on Kubernetes</p>
+<div class="add">
+  <input id="t" placeholder="What needs doing?" onkeydown="if(event.key==='Enter')add()"/>
+  <button onclick="add()">Add</button>
+</div>
+<ul id="list"></ul>
+<div id="empty" style="color:#94a3b8;text-align:center;padding:2rem;display:none">No tasks yet</div>
+<footer id="foot">connecting...</footer>
+</div>
+<script>
+const API='http://localhost:3001/api/tasks';
+async function load(){
+  try{
+    const r=await fetch(API);
+    const tasks=await r.json();
+    const ul=document.getElementById('list');
+    ul.innerHTML='';
+    document.getElementById('empty').style.display=tasks.length?'none':'block';
+    tasks.forEach(t=>{
+      ul.innerHTML+=`<li class="${t.done?'done':''}">
+        <input type="checkbox" ${t.done?'checked':''} onclick="toggle(${t.id})"/>
+        <span>${t.title}</span>
+        <button class="ghost" onclick="del(${t.id})">✕</button></li>`;
+    });
+    document.getElementById('foot').textContent=tasks.length+' task(s) · Running in Kubernetes pod · PostgreSQL StatefulSet';
+  }catch(e){
+    document.getElementById('foot').textContent='Error: '+e.message;
+  }
+}
+async function add(){
+  const t=document.getElementById('t');
+  if(!t.value.trim())return;
+  await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:t.value.trim()})});
+  t.value='';load();
+}
+async function toggle(id){await fetch(API+'/'+id,{method:'PUT'});load();}
+async function del(id){await fetch(API+'/'+id,{method:'DELETE'});load();}
+load();
+</script></body></html>
