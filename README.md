@@ -197,3 +197,4 @@ cd infra && tofu destroy        # type 'yes'
 
 If `tofu destroy` ever fails, delete the resource group in the portal — it removes everything inside it.
 # demo Thu Jun 11 01:44:32 CEST 2026
+# demo Thu Jun 11 01:48:10 CEST 2026
