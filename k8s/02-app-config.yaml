@@ -1,0 +1,11 @@
+# Non-secret configuration shared by the API pods.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: taskapp
+data:
+  DB_HOST: postgres        # matches the headless Service name below
+  DB_PORT: "5432"
+  DB_NAME: tasks
+  PORT: "3000"

@@ -1,0 +1,28 @@
+# Single public entry point (lab 07 Ingress). The ingress-nginx controller gets
+# one Azure public IP and routes by path:
+#   /api/... -> api Service (the REST backend; path is preserved, e.g. /api/tasks)
+#   /        -> web Service (the static UI)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: taskapp-ingress
+  namespace: taskapp
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 3000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 80

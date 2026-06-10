@@ -1,0 +1,16 @@
+{
+  "name": "taskmanager-api",
+  "version": "1.0.0",
+  "description": "Cloud-native Task Manager REST API (Express + PostgreSQL)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"No unit tests yet - smoke test runs in CI\" && exit 0"
+  },
+  "author": "Muhammad Muzammal Hussain",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2",
+    "pg": "^8.12.0"
+  }
+}

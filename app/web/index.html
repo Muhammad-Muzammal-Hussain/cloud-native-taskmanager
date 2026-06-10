@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cloud-Native Task Manager</title>
+  <style>
+    :root { --bg:#0f172a; --card:#1e293b; --accent:#38bdf8; --text:#e2e8f0; --muted:#94a3b8; --done:#475569; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+           background: var(--bg); color: var(--text); min-height:100vh; padding:2rem 1rem; }
+    .wrap { max-width: 640px; margin: 0 auto; }
+    h1 { font-size: 1.6rem; margin-bottom: .25rem; }
+    p.sub { color: var(--muted); margin-top:0; margin-bottom: 1.5rem; font-size:.9rem; }
+    .add { display:flex; gap:.5rem; margin-bottom:1.5rem; }
+    input[type=text] { flex:1; padding:.75rem 1rem; border-radius:.6rem; border:1px solid #334155;
+                       background: var(--card); color: var(--text); font-size:1rem; }
+    button { cursor:pointer; border:none; border-radius:.6rem; padding:.75rem 1rem;
+             background: var(--accent); color:#0b1220; font-weight:600; font-size:1rem; }
+    button.ghost { background:transparent; color:var(--muted); padding:.4rem .6rem; font-size:1.2rem; }
+    ul { list-style:none; padding:0; margin:0; }
+    li { display:flex; align-items:center; gap:.75rem; background:var(--card);
+         padding:.85rem 1rem; border-radius:.6rem; margin-bottom:.6rem; }
+    li.done .title { text-decoration: line-through; color: var(--done); }
+    .title { flex:1; }
+    .check { width:1.3rem; height:1.3rem; cursor:pointer; accent-color: var(--accent); }
+    .empty { color: var(--muted); text-align:center; padding:2rem 0; }
+    footer { margin-top:2rem; color:var(--muted); font-size:.75rem; text-align:center; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>📋 Task Manager</h1>
+    <p class="sub">Cloud-native demo · Express API + PostgreSQL on Azure Kubernetes Service</p>
+
+    <div class="add">
+      <input id="title" type="text" placeholder="What needs doing?" autocomplete="off" />
+      <button id="addBtn">Add</button>
+    </div>
+
+    <ul id="list"></ul>
+    <div id="empty" class="empty" style="display:none">No tasks yet — add one above.</div>
+    <footer id="meta">connecting…</footer>
+  </div>
+
+  <script>
+    const API = '/api/tasks';
+    const list = document.getElementById('list');
+    const empty = document.getElementById('empty');
+    const meta = document.getElementById('meta');
+    const titleInput = document.getElementById('title');
+
+    async function load() {
+      try {
+        const res = await fetch(API);
+        const tasks = await res.json();
+        render(tasks);
+        meta.textContent = `${tasks.length} task(s) · served by pod ` + (window.location.host);
+      } catch (e) {
+        meta.textContent = 'API unreachable: ' + e.message;
+      }
+    }
+
+    function render(tasks) {
+      list.innerHTML = '';
+      empty.style.display = tasks.length ? 'none' : 'block';
+      for (const t of tasks) {
+        const li = document.createElement('li');
+        if (t.done) li.classList.add('done');
+        li.innerHTML = `
+          <input class="check" type="checkbox" ${t.done ? 'checked' : ''} data-id="${t.id}" />
+          <span class="title">${escapeHtml(t.title)}</span>
+          <button class="ghost" data-del="${t.id}" title="Delete">✕</button>`;
+        list.appendChild(li);
+      }
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    async function addTask() {
+      const title = titleInput.value.trim();
+      if (!title) return;
+      await fetch(API, { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ title }) });
+      titleInput.value = '';
+      load();
+    }
+
+    document.getElementById('addBtn').onclick = addTask;
+    titleInput.addEventListener('keydown', e => { if (e.key === 'Enter') addTask(); });
+
+    list.addEventListener('click', async (e) => {
+      const id = e.target.dataset.id || e.target.dataset.del;
+      if (!id) return;
+      if (e.target.dataset.del) {
+        await fetch(`${API}/${id}`, { method:'DELETE' });
+      } else {
+        await fetch(`${API}/${id}`, { method:'PUT' });
+      }
+      load();
+    });
+
+    load();
+  </script>
+</body>
+</html>
